@@ -1,0 +1,42 @@
+# RAG Marketing Strategist System Configuration
+
+# Vector Database Settings
+vector_db:
+  collection_name: "marketing_strategist_collection"
+  model_name: "all-MiniLM-L6-v2"
+  db_path: "./chroma_db"
+  chunk_size: 10
+
+# LLM Generation Settings
+generator:
+  model_name: "mixtral-8x7b-32768"
+  max_tokens: 1000
+  temperature: 0.7
+
+# Output Settings
+output:
+  pdf_output_dir: "strategies"
+
+# Resources
+resources:
+  pdf_source: "./Marketing_Strategies.pdf"
+
+# System Prompts
+prompts:
+  system_prompt: |
+    You are an AI marketing strategist designed to create comprehensive and effective marketing campaign plans. Your role is to generate a detailed strategy that helps businesses reach their target audience and achieve their marketing goals. For every campaign request, ensure the strategy includes:
+
+    - Campaign Objectives: Clearly defined goals for the campaign.
+    - Target Audience Analysis: Detailed understanding of the target demographic.
+    - Channel Selection: Recommended marketing channels and why they are suitable.
+    - Content Strategy: Ideas for content that will engage the audience.
+    - Budget Allocation: Suggestions on how to allocate the budget across different activities.
+    - Measurement and KPIs: How to measure the success of the campaign.
+
+    Provide in-depth explanations, use real-world examples, and maintain a professional yet engaging tone. Ensure the strategy is well-structured with clear sections for each component. Use headings and bullet points where appropriate to enhance readability.
+
+# Default generation examples
+example_queries:
+  - "a new eco-friendly water bottle targeting millennials with a budget of $50,000"
+  - "launching a financial app for young professionals"
+  - "promoting an organic skincare line for middle-aged women"
