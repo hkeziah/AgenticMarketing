@@ -7,44 +7,12 @@ with a language model for generating comprehensive and effective strategies.
 """
 
 import os
-import argparse
+import streamlit as st
 from config import load_config, load_environment_variables
 from utils import setup_nltk, extract_text_from_pdf, save_strategy_as_pdf
 from vector_db import VectorDatabase
 from generator import GroqGenerator
 from strategist import RAGMarketingStrategist
-
-
-def parse_arguments():
-    """
-    Parse command-line arguments
-
-    Returns:
-        argparse.Namespace: Parsed arguments
-    """
-    parser = argparse.ArgumentParser(description='RAG Marketing Strategist System')
-    parser.add_argument(
-        '--config',
-        type=str,
-        default='settings.yaml',
-        help='Path to the configuration file'
-    )
-    parser.add_argument(
-        '--query',
-        type=str,
-        help='Marketing campaign description to generate a strategy for'
-    )
-    parser.add_argument(
-        '--add-pdf',
-        type=str,
-        help='Path to a PDF file to add to the vector database'
-    )
-    parser.add_argument(
-        '--save',
-        action='store_true',
-        help='Save the generated strategy as a PDF'
-    )
-    return parser.parse_args()
 
 
 def initialize_system(config):
@@ -92,59 +60,79 @@ def add_pdf_to_vector_db(vector_db, pdf_path, config):
 
 def main():
     """Main function to run the RAG Marketing Strategist System"""
-    # Parse command-line arguments
-    args = parse_arguments()
+    st.set_page_config(page_title="Marketing Campaign Strategist", layout="wide")
+    
+    st.title("🎯 AI Marketing Campaign Strategist")
+    st.markdown("""
+    Generate comprehensive marketing strategies using AI. This tool combines marketing expertise 
+    with advanced AI to create customized campaign strategies for your business.
+    """)
 
-    # Load environment variables
+    # Load environment variables and setup
     load_environment_variables()
-
-    # Set up NLTK
     setup_nltk()
-
+    
     # Load configuration
-    config = load_config(args.config)
-
+    config = load_config('settings.yaml')
+    
     # Initialize the system
     vector_db, generator, strategist = initialize_system(config)
-
-    # Add a PDF to the vector database if specified
-    if args.add_pdf:
-        add_pdf_to_vector_db(vector_db, args.add_pdf, config)
-    elif config.get('resources', {}).get('pdf_source'):
-        # Use default PDF from configuration
-        default_pdf = config['resources']['pdf_source']
-        if os.path.exists(default_pdf):
-            add_pdf_to_vector_db(vector_db, default_pdf, config)
-
-    # Generate a strategy if a query is specified
-    if args.query:
-        # Generate the strategy
-        strategy = strategist.create_strategy(args.query)
-
-        # Print the strategy
-        print(f"\nMarketing Strategy for '{args.query}':\n")
-        print(strategy)
-
-        # Save the strategy as a PDF if specified
-        if args.save:
-            output_dir = config.get('output', {}).get('pdf_output_dir', 'strategies')
-            filename = save_strategy_as_pdf(args.query, strategy, output_dir)
-            print(f"\nStrategy saved as PDF: {filename}")
-    elif config.get('example_queries'):
-        # Use default query from configuration
-        query = config['example_queries'][0]
-
-        # Generate the strategy
-        strategy = strategist.create_strategy(query)
-
-        # Print the strategy
-        print(f"\nMarketing Strategy for '{query}':\n")
-        print(strategy)
-
-        # Save the strategy as a PDF
-        output_dir = config.get('output', {}).get('pdf_output_dir', 'strategies')
-        filename = save_strategy_as_pdf(query, strategy, output_dir)
-        print(f"\nStrategy saved as PDF: {filename}")
+    
+    # Sidebar for PDF upload
+    with st.sidebar:
+        st.header("📚 Knowledge Base")
+        st.markdown("Upload marketing documents to enhance the AI's knowledge")
+        
+        uploaded_file = st.file_uploader("Upload PDF", type="pdf")
+        if uploaded_file:
+            with st.spinner("Processing PDF..."):
+                # Save uploaded file temporarily
+                temp_path = f"temp_{uploaded_file.name}"
+                with open(temp_path, "wb") as f:
+                    f.write(uploaded_file.getvalue())
+                
+                # Add to vector database
+                add_pdf_to_vector_db(vector_db, temp_path, config)
+                os.remove(temp_path)  # Clean up
+                st.success("PDF processed and added to knowledge base!")
+    
+    # Main content area
+    st.header("💡 Generate Marketing Strategy")
+    
+    # Input for marketing campaign description
+    campaign_description = st.text_area(
+        "Describe your marketing campaign",
+        placeholder="Example: a new eco-friendly water bottle targeting millennials with a budget of $50,000",
+        height=100
+    )
+    
+    # Generate button
+    if st.button("Generate Strategy", type="primary"):
+        if not campaign_description:
+            st.warning("Please provide a campaign description")
+        else:
+            with st.spinner("Generating your marketing strategy..."):
+                try:
+                    strategy = strategist.create_strategy(campaign_description)
+                    
+                    # Display strategy
+                    st.markdown("### 📊 Your Marketing Strategy")
+                    st.markdown(strategy)
+                    
+                    # Save as PDF
+                    output_dir = config.get('output', {}).get('pdf_output_dir', 'strategies')
+                    filename = save_strategy_as_pdf(campaign_description, strategy, output_dir)
+                    
+                    # Provide download link
+                    with open(filename, 'rb') as f:
+                        st.download_button(
+                            label="Download Strategy as PDF",
+                            data=f,
+                            file_name=os.path.basename(filename),
+                            mime="application/pdf"
+                        )
+                except Exception as e:
+                    st.error(f"Error generating strategy: {str(e)}")
 
 
 if __name__ == "__main__":
